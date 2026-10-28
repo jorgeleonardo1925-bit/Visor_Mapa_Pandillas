@@ -1,0 +1,107 @@
+<index.html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visor Geográfico Protegido - Panamá</title>
+    
+    <!-- Cargar los estilos de Leaflet (CSS) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    
+    <style>
+        body, html { margin: 0; padding: 0; height: 100%; width: 100%; font-family: Arial, sans-serif; }
+        #map { height: 100vh; width: 100vw; display: none; } /* Oculto hasta poner contraseña */
+        
+        /* Estilos de la pantalla de bloqueo de contraseña */
+        #auth-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #1e293b; display: flex; justify-content: center; align-items: center; z-index: 9999;
+        }
+        .auth-box {
+            background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); text-align: center; width: 300px;
+        }
+        .auth-box h3 { margin-bottom: 15px; color: #1e293b; }
+        .auth-box input { width: 85%; padding: 10px; margin-bottom: 15px; border: 1px solid #cbd5e1; border-radius: 5px; font-size: 16px; }
+        .auth-box button { background: #2563eb; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 16px; width: 100%; }
+        .auth-box button:hover { background: #1d4ed8; }
+        #error-msg { color: #dc2626; font-size: 14px; margin-top: 10px; display: none; }
+    </style>
+</head>
+<body>
+
+    <!-- Pantalla de Autenticación (Contraseña) -->
+    <div id="auth-screen">
+        <div class="auth-box">
+            <h3>🔒 Acceso Restringido</h3>
+            <p style="font-size: 13px; color: #64748b; margin-bottom: 15px;">Ingrese la clave para ver el mapa analítico.</p>
+            <input type="password" id="password-input" placeholder="Contraseña...">
+            <br>
+            <button onclick="verificarClave()">Ingresar</button>
+            <div id="error-msg">Contraseña incorrecta</div>
+        </div>
+    </div>
+
+    <!-- Contenedor del mapa -->
+    <div id="map"></div>
+
+    <!-- Cargar el script de Leaflet (JS) -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <script>
+        // CAMBIA AQUÍ TU CONTRASEÑA:
+        const CLAVE_CORRECTA = "MiClaveSecreta123";
+
+        function verificarClave() {
+            const inputVal = document.getElementById('password-input').value;
+            const errorMsg = document.getElementById('error-msg');
+
+            if (inputVal === CLAVE_CORRECTA) {
+                // Ocultar pantalla de clave y mostrar el mapa
+                document.getElementById('auth-screen').style.display = 'none';
+                document.getElementById('map').style.display = 'block';
+                
+                // Inicializar mapa una vez visible
+                inicializarMapa();
+            } else {
+                errorMsg.style.display = 'block';
+            }
+        }
+
+        // Permitir presionar la tecla "Enter" para iniciar sesión
+        document.getElementById('password-input').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                verificarClave();
+            }
+        });
+
+        function inicializarMapa() {
+            var map = L.map('map').setView([8.538, -80.7821], 8);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+
+            fetch('datos_mapa.geojson')
+                .then(response => response.json())
+                .then(data => {
+                    L.geoJSON(data, {
+                        onEachFeature: function (feature, layer) {
+                            if (feature.properties) {
+                                let popupContent = "<b>Información del punto:</b><br>";
+                                for (let key in feature.properties) {
+                                    popupContent += `${key}: ${feature.properties[key]}<br>`;
+                                }
+                                layer.bindPopup(popupContent);
+                            }
+                        }
+                    }).addTo(map);
+                })
+                .catch(error => console.error('Error al cargar el archivo GeoJSON:', error));
+            
+            // Invalidar tamaño para corregir posibles grises de Leaflet al mostrarse
+            setTimeout(function() { map.invalidateSize(); }, 300);
+        }
+    </script>
+</body>
+</html>
